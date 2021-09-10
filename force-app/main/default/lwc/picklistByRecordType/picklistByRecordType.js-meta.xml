@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>52.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Record Type Picklist</masterLabel>
+    <description>Filter picklist values based on record type.</description>
+    <targets>
+        <target>lightning__FlowScreen</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__FlowScreen">
+            <property name="label" label="Label" type="String" role="inputOnly" description="Field Label"/>
+            <property name="helpText" label="Help Text" type="String" role="inputOnly" description="Provide default help text, or leave blank and the default help text that is configured in the field's metadata will be provided." />
+            <property name="objectfieldApiName" label="ObjectApiName.FieldApiName" type="String" role="inputOnly" description="MyCustomObject__c.MyCustomField__c"/>
+            <property name="recordTypeId" label="Record Type Id" type="String" role="inputOnly"/>
+            <property name="interviewGuid" label="{!$Flow.InterviewGuid}" type="String" role="inputOnly" description="Unique identifier for this field. You can start by using {!$Flow.InterviewGuid}. If you have multiple of this component type in the same flow, you'll have to prepend {!$Flow.InterviewGuid} with something else like '1' or '2' to make each component unique."/>
+            <property name="required" label="Required" type="Boolean" role="inputOnly" />
+            <property name="selectedValue" label="Value" type="String" role="outputOnly"/>
+            <property name="defaultValue" label="Default Value" type="String" role="inputOnly" description="Provide a default value that is available for this picklist / record type, or leave blank and the default value that is configured in the field's metadata will be provided." />
+            <property name="controllerValue" label="Controlling Field Value" type="String" role="inputOnly" description="If this picklist depends on another, provide the controller value to render the accurate list of picklist values." />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

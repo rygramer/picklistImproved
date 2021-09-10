@@ -1,0 +1,27 @@
+<template>
+    <div class="slds-var-m-bottom_x-small">
+        <template if:true={disabled}>
+            <lightning-combobox
+                name={label} 
+                label={label}
+                value={selectedValue} 
+                options={picklistValues}
+                onchange={handleChange}
+                required={required}
+                field-level-help={helpTextToUse}
+                disabled>
+            </lightning-combobox>
+        </template>
+        <template if:false={disabled}>
+            <lightning-combobox
+                name={label} 
+                label={label}
+                value={selectedValue} 
+                options={picklistValues}
+                onchange={handleChange}
+                required={required}
+                field-level-help={helpTextToUse}>
+            </lightning-combobox>
+        </template>
+    </div>
+</template>
