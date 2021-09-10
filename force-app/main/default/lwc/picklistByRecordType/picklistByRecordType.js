@@ -3,13 +3,10 @@ import{ getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
 import { FlowAttributeChangeEvent } from "lightning/flowSupport";
 
 export default class WireGetPicklistValues extends LightningElement {
-    @api controllerValue;
     @api defaultValue;
-    @api helpText;
     @api interviewGuid;
     @api label;
     @api objectfieldApiName;
-    @api recordTypeId;
     @api required;
     @api requiredMessage;
     @api selectedValue;
@@ -21,29 +18,43 @@ export default class WireGetPicklistValues extends LightningElement {
     get sessionStorageKey() {
         return this.interviewGuid;
     }
-
-    get controllerValue() {
-        if(this.controllerValue){
-            return this.controllerValue;
-        }
-        this.controllerValue = '';
-        return this.controllerValue;
-    }
     
     get objectApiName() {
         return this.objectfieldApiName.split('.')[0];
-    }
-
-    get recordTypeId() {
-        return this.recordTypeId;
     }
 
     get fieldApiName() {
         return this.objectfieldApiName.split('.')[1];
     }
 
+    _controllerValue;
+    @api
+    set controllerValue(value){
+        this._controllerValue = '';
+        if(value){
+            this._controllerValue = value;
+        }
+    }
+    get controllerValue() {
+        return this._controllerValue;
+    }
+
+    _recordTypeId;
+    @api
+    set recordTypeId(value) {
+        this._recordTypeId = value;
+    }
+    get recordTypeId() {
+        return this._recordTypeId;
+    }
+
+    _helpText;
+    @api
+    set helpText(value) {
+        this._helpText = value;
+    }
     get helpText() {
-        return this.helpText;
+        return this._helpText;
     }
 
     @wire(getObjectInfo, {
@@ -51,7 +62,6 @@ export default class WireGetPicklistValues extends LightningElement {
     })
     wiredDefaultRecordTypeId({data}){
         if(data){
-            console.log(data);
             if(this.recordTypeId){
                 this.recordTypeIdToUse = this.recordTypeId;
             } else {
