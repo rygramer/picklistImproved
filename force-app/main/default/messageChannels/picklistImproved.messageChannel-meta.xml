@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningMessageChannel xmlns="http://soap.sforce.com/2006/04/metadata">
+    <masterLabel>Picklist Improved</masterLabel>
+    <isExposed>true</isExposed>
+    <description>Message Channel to pass picklist dependency data.</description>
+    <lightningMessageFields>
+        <fieldName>ObjectApiName</fieldName>
+        <description>Object Api Name</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>FieldApiName</fieldName>
+        <description>Field Api Name</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>SelectedValue</fieldName>
+        <description>Selected Value</description>
+    </lightningMessageFields>
+</LightningMessageChannel>

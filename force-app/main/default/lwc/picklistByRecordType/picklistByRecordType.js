@@ -1,6 +1,8 @@
 import { LightningElement, wire, track, api } from 'lwc';
 import{ getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
 import { FlowAttributeChangeEvent } from "lightning/flowSupport";
+import { publish, subscribe, MessageContext } from 'lightning/messageService';
+import PICKLIST_CHANNEL from '@salesforce/messageChannel/picklistImproved__c';
 
 export default class WireGetPicklistValues extends LightningElement {
     @api defaultValue;
@@ -8,15 +10,21 @@ export default class WireGetPicklistValues extends LightningElement {
     @api label;
     @api objectfieldApiName;
     @api required;
-    @api requiredMessage;
     @api selectedValue;
-    @track helpTextToUse;
-    @track recordTypeIdToUse;
-    @track error;
-    @track picklistValues;
 
-    get sessionStorageKey() {
-        return this.interviewGuid;
+    @track controllerFieldApiName;
+    @track error;
+    @track helpTextToUse;
+    @track mapPicklistValues;
+    @track picklistValues;
+    @track recordTypeIdToUse;
+
+    get selectedValueStorageKey() {
+        return this.interviewGuid+'selectedvalue';
+    }
+
+    get controllerValueStorageKey() {
+        return this.interviewGuid+'controllervalue';
     }
     
     get objectApiName() {
@@ -27,10 +35,9 @@ export default class WireGetPicklistValues extends LightningElement {
         return this.objectfieldApiName.split('.')[1];
     }
 
-    _controllerValue;
+    _controllerValue = null;
     @api
     set controllerValue(value){
-        this._controllerValue = '';
         if(value){
             this._controllerValue = value;
         }
@@ -57,11 +64,15 @@ export default class WireGetPicklistValues extends LightningElement {
         return this._helpText;
     }
 
+    @wire(MessageContext)
+    messageContext;
+
     @wire(getObjectInfo, {
         objectApiName: '$objectApiName'
     })
-    wiredDefaultRecordTypeId({data}){
+    wiredGetObjectInfo({data}){
         if(data){
+            console.log(data);
             if(this.recordTypeId){
                 this.recordTypeIdToUse = this.recordTypeId;
             } else {
@@ -70,6 +81,7 @@ export default class WireGetPicklistValues extends LightningElement {
             var helpTextToUse = null;
             var fieldApiName = this.fieldApiName;
             var helpText = this.helpText;
+            var controllerFieldApiName = null
             Object.keys(data.fields).map(function(key){
                 if(key == fieldApiName){
                     if(helpText){
@@ -78,33 +90,46 @@ export default class WireGetPicklistValues extends LightningElement {
                     else if (data.fields[key].inlineHelpText != null) {
                         helpTextToUse = data.fields[key].inlineHelpText;
                     }
+                    if(data.fields[key].controllerName != null){
+                        controllerFieldApiName = data.fields[key].controllerName;
+                    }
                 }
             });
             this.helpTextToUse = helpTextToUse;
+            this.controllerFieldApiName = controllerFieldApiName;
         }
     }
     
-    disabled = false;
+    
     @wire(getPicklistValues, {
         recordTypeId: '$recordTypeIdToUse',
         fieldApiName: '$objectfieldApiName'
     })
-    wiredPicklistValues({data,error}){
+    wiredGetPicklistValues({data,error}){
         if(data){
             this.error = undefined;
             if(Object.keys(data.controllerValues).length === 0){
-                this.picklistValues = data.values;
+                this.constructPicklist(data.values);
             } else {
                 const indices = [];
                 const picklistValues = [];
                 var controllerValue = this.controllerValue;
+                const mapPicklist = new Map();
                 Object.keys(data.controllerValues).map(function(key){
+                    mapPicklist.set(key,[]);
                     if(key == controllerValue){
                         indices.push(data.controllerValues[key]);
                     }
                 });
                 data.values.forEach((value) => {
                     value.validFor.forEach((valid) =>{
+                        var index = 0
+                        for(let key of mapPicklist.keys()){
+                            if(valid === index){
+                                mapPicklist.get(key).push(value);
+                            }
+                            index++;
+                        }
                         indices.forEach((index) => {
                             if(valid === index){
                                 picklistValues.push(value);
@@ -112,17 +137,15 @@ export default class WireGetPicklistValues extends LightningElement {
                         });
                     });
                 });
-                this.picklistValues = picklistValues;
-            }
-            if(this.picklistValues.length === 0){
-                this.disabled = true;
+                this.mapPicklistValues = mapPicklist;
+                this.constructPicklist(picklistValues);
             }
             if(this.defaultValue === undefined){
                 if(data.defaultValue != null){
                     this.defaultValue = data.defaultValue.value;
                 }
             }
-            this.cacheCheck();
+            this.checkCache();
         }
         if(error){
             this.picklistValues = undefined;
@@ -131,35 +154,81 @@ export default class WireGetPicklistValues extends LightningElement {
             console.log(this.error);
         }
     }
+
+    disabled;
+    canRequire;
+    constructPicklist(value){
+        this.picklistValues = value;
+        if(this.picklistValues.length === 0){
+            this.disabled = true;
+            this.canRequire = false;
+            this.dispatchEvent(new FlowAttributeChangeEvent('selectedValue', undefined));
+        } else {
+            this.disabled = false;
+            this.canRequire = true;
+        }
+    }
     
     connectedCallback(){
-        this.cacheCheck();
+        this.checkCache();
+        this.subscribeToMessageChannel();
     }
 
     handleChange(event){
-        this.addToCache(event.detail.value);
+        this.broadcast(event.detail.value);
     }
 
-    cacheCheck(){
-        let cachedSelection = sessionStorage.getItem(this.sessionStorageKey);
-        if(this.defaultValue || cachedSelection){
-            if(cachedSelection){
-                this.addToCache(cachedSelection);
+    checkCache(){
+        let cachedSelectedValue = sessionStorage.getItem(this.selectedValueStorageKey);
+        if(this.defaultValue || cachedSelectedValue){
+            if(cachedSelectedValue){
+                this.broadcast(cachedSelectedValue);
             } else {
-                this.addToCache(this.defaultValue);
+                this.broadcast(this.defaultValue);
+            }
+        }
+
+        let cachedControllerValue = sessionStorage.getItem(this.controllerValueStorageKey);
+        if(cachedControllerValue){
+            if(this.mapPicklistValues){
+                this.constructPicklist(this.mapPicklistValues.get(cachedControllerValue));
             }
         }
     }
 
-    addToCache(selectedValue){
+    broadcast(selectedValue){
         this.dispatchEvent(new FlowAttributeChangeEvent('selectedValue', selectedValue));
-        sessionStorage.setItem(this.sessionStorageKey, selectedValue);
+
+        sessionStorage.setItem(this.selectedValueStorageKey, selectedValue);
+
+        const payload = {
+            objectApiName: this.objectApiName,
+            fieldApiName: this.fieldApiName,
+            selectedvalue: selectedValue
+        };
+        publish(this.messageContext, PICKLIST_CHANNEL, payload);
+    }
+
+    subscription = null;
+    subscribeToMessageChannel() {
+        this.subscription = subscribe(
+            this.messageContext,
+            PICKLIST_CHANNEL,
+            (message) => this.handleMessage(message)
+        );
+    }
+
+    handleMessage(message) {
+        if(message.objectApiName === this.objectApiName && message.fieldApiName === this.controllerFieldApiName && this.controllerValue === null){
+            this.constructPicklist(this.mapPicklistValues.get(message.selectedvalue));
+            sessionStorage.setItem(this.controllerValueStorageKey, message.selectedvalue);
+        }
     }
 
     @api
     validate() {
     	let errorMessage = "Please select a choice.";
-    	if (this.required === true && !this.selectedValue) {
+    	if (this.canRequire === true && this.required === true && !this.selectedValue) {
     		return {
     			isValid: false,
     			errorMessage: errorMessage
